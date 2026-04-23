@@ -143,28 +143,33 @@ async function handleExtract(req, res) {
     }
 
     // 3. AI Parsing Fallback
-    if (!mediaUrl && process.env.GEMINI_API_KEY && (url.includes('tiktok') || url.includes('instagram') || url.includes('youtube'))) {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      $('style, svg, img, nav, footer, script[src]').remove();
-      const cleanHtml = $.html().slice(0, 45000);
+    if (!mediaUrl && process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 10 && (url.includes('tiktok') || url.includes('instagram') || url.includes('youtube'))) {
+      try {
+        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+        $('style, svg, img, nav, footer, script[src]').remove();
+        const cleanHtml = $.html().slice(0, 45000);
 
-      const aiResult = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: `You are an expert data scraper. Extract the absolute highest resolution, direct raw video (.mp4) or image (.jpg/png) URL from the messy HTML chunk provided. 
-        Focus intensely on extracting CDN paths (like .byte., .cdn., fbcdn, or strings ending in .mp4). Ignore UI elements, trackers, and low-res thumbnails.
-        Reply strictly in JSON: { "mediaUrl": string | null, "type": "video" | "image", "title": string, "thumbnail": string | null }. 
-        HTML: ${cleanHtml}`,
-        config: { responseMimeType: "application/json", temperature: 0.1 },
-      });
+        const aiResult = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: `You are an expert data scraper. Extract the absolute highest resolution, direct raw video (.mp4) or image (.jpg/png) URL from the messy HTML chunk provided. 
+          Focus intensely on extracting CDN paths (like .byte., .cdn., fbcdn, or strings ending in .mp4). Ignore UI elements, trackers, and low-res thumbnails.
+          Reply strictly in JSON: { "mediaUrl": string | null, "type": "video" | "image", "title": string, "thumbnail": string | null }. 
+          HTML: ${cleanHtml}`,
+          config: { responseMimeType: "application/json", temperature: 0.1 },
+        });
 
-      if (aiResult.text) {
-        const parsed = JSON.parse(aiResult.text);
-        if (parsed.mediaUrl) {
-           mediaUrl = parsed.mediaUrl;
-           type = parsed.type || "video";
-           title = parsed.title || title;
-           thumbnail = parsed.thumbnail || thumbnail;
+        if (aiResult.text) {
+          const parsed = JSON.parse(aiResult.text);
+          if (parsed.mediaUrl) {
+             mediaUrl = parsed.mediaUrl;
+             type = parsed.type || "video";
+             title = parsed.title || title;
+             thumbnail = parsed.thumbnail || thumbnail;
+          }
         }
+      } catch (aiError) {
+        console.error("AI Extractor failed gracefully:", aiError.message || aiError);
+        // Do not throw here, let it fall through to the !mediaUrl 404 handler below
       }
     }
 
