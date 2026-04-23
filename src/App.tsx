@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, ShieldCheck, Youtube, Facebook, Instagram, Twitter, AlertCircle, Loader2, ClipboardPaste, CheckCircle2, History, Trash2 } from 'lucide-react';
+import { Download, ShieldCheck, Youtube, Facebook, Instagram, Twitter, AlertCircle, Loader2, ClipboardPaste, CheckCircle2, History, Trash2, XCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 const TiktokIcon = (props: React.SVGProps<SVGSVGElement>) => (
@@ -179,16 +179,28 @@ export default function App() {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder={placeholders[placeholderIdx]}
-                className="bg-transparent border-none focus:ring-0 text-white placeholder-slate-500 px-6 py-4 w-full text-lg outline-none pr-14 transition-all duration-300"
+                className="bg-transparent border-none focus:ring-0 text-white placeholder-slate-500 px-6 py-4 w-full text-lg outline-none pr-24 transition-all duration-300"
               />
-              <button
-                type="button"
-                onClick={handlePaste}
-                className="absolute right-4 text-slate-500 hover:text-indigo-400 transition-colors tooltip-trigger p-1 hover:bg-white/5 rounded-lg"
-                title="Paste from clipboard"
-              >
-                <ClipboardPaste className="w-5 h-5" />
-              </button>
+              <div className="absolute right-3 flex items-center gap-1">
+                {url && (
+                  <button
+                    type="button"
+                    onClick={() => setUrl("")}
+                    className="text-slate-400 hover:text-red-400 transition-colors p-1.5 hover:bg-white/5 rounded-lg"
+                    title="Clear link"
+                  >
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={handlePaste}
+                  className="text-slate-500 hover:text-indigo-400 transition-colors p-1.5 hover:bg-white/5 rounded-lg"
+                  title="Paste from clipboard"
+                >
+                  <ClipboardPaste className="w-5 h-5" />
+                </button>
+              </div>
             </div>
             
             <button 
