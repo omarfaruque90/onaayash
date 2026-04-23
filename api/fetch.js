@@ -43,15 +43,38 @@ async function handleExtract(req, res) {
     let title = "Extracted Media - Onaayash";
     let thumbnail = null;
 
-    // Advanced Header Spoofing (Mobile Safari)
+    // User-Agent Rotation Map for Bot bypass
+    const userAgents = [
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/117.0.5938.108 Mobile/15E148 Safari/604.1",
+      "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Mobile Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36"
+    ];
+    const randomUA = userAgents[Math.floor(Math.random() * userAgents.length)];
+
+    // Enforce root referer (Required for explicit edge bypass setups like TikTok)
+    const requestUrl = new URL(url);
+    const enforcedReferer = requestUrl.hostname.includes('tiktok.com') ? 'https://www.tiktok.com/' : `${requestUrl.protocol}//${requestUrl.hostname}/`;
+
+    // Advanced Header Spoofing
     const spoofHeaders = {
-      "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1",
+      "User-Agent": randomUA,
       "Accept-Language": "en-US,en;q=0.9",
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-      "Referer": new URL(url).origin + "/",
+      "Referer": enforcedReferer,
+      "Cache-Control": "no-cache"
     };
 
-    const response = await fetch(url, { headers: spoofHeaders });
+    // Fast-fail AbortController for Vercel timeouts (8s ceiling out of 10s serverless lifespan)
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 8000);
+
+    const response = await fetch(url, { 
+      headers: spoofHeaders,
+      signal: abortController.signal
+    });
+    
+    clearTimeout(timeoutId);
     if (!response.ok) {
        return res.status(response.status).json({ error: `Dynamic content blocked: Server returned ${response.status} for URL.` });
     }
@@ -127,7 +150,10 @@ async function handleExtract(req, res) {
 
       const aiResult = await ai.models.generateContent({
         model: "gemini-2.5-flash",
-        contents: `Extract the direct raw video/image URL from the provided HTML. Look in application/ld+json or internal scripting states. Reply strictly JSON { "mediaUrl": string | null, "type": "video" | "image", "title": string, "thumbnail": string | null }. HTML: ${cleanHtml}`,
+        contents: `You are an expert data scraper. Extract the absolute highest resolution, direct raw video (.mp4) or image (.jpg/png) URL from the messy HTML chunk provided. 
+        Focus intensely on extracting CDN paths (like .byte., .cdn., fbcdn, or strings ending in .mp4). Ignore UI elements, trackers, and low-res thumbnails.
+        Reply strictly in JSON: { "mediaUrl": string | null, "type": "video" | "image", "title": string, "thumbnail": string | null }. 
+        HTML: ${cleanHtml}`,
         config: { responseMimeType: "application/json", temperature: 0.1 },
       });
 
@@ -156,6 +182,9 @@ async function handleExtract(req, res) {
     const proxyUrl = `/api/fetch?proxyUrl=${encodeURIComponent(mediaUrl)}&type=${type}`;
     res.json({ title, type, mediaUrl: proxyUrl, originalUrl: mediaUrl, thumbnail });
   } catch (err) {
+    if (err.name === 'AbortError') {
+       return res.status(504).json({ error: "Source server took too long to respond. Please try again." });
+    }
     console.error(err);
     res.status(500).json({ error: "Server Error: Exception thrown during extraction process." });
   }
