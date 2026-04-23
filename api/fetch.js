@@ -21,7 +21,7 @@ export default async function handler(req, res) {
   }
 
   // If streaming proxy
-  if (req.method === "GET" && req.query.proxyUrl) {
+  if (req.method === "GET" && req.query.url) {
     return handleProxy(req, res);
   }
 
@@ -216,7 +216,7 @@ async function handleExtract(req, res) {
     }
 
     // Return the proxy endpoint so the frontend bypasses CORS
-    const proxyUrl = `/api/fetch?proxyUrl=${encodeURIComponent(mediaUrl)}&type=${type}`;
+    const proxyUrl = `/api/proxy?url=${encodeURIComponent(mediaUrl)}&type=${type}`;
     res.json({ title, type, mediaUrl: proxyUrl, originalUrl: mediaUrl, thumbnail });
   } catch (err) {
     if (err.name === 'AbortError') {
@@ -229,8 +229,8 @@ async function handleExtract(req, res) {
 
 async function handleProxy(req, res) {
   try {
-    const { proxyUrl, type } = req.query;
-    const url = decodeURIComponent(proxyUrl);
+    const { url, type } = req.query;
+    if (!url) return res.status(400).send("URL missing");
     const refererObj = new URL(url);
     
     // Add same mobile spoofing and referer for the proxy pipe

@@ -15,6 +15,14 @@
   ],
   "rewrites": [
     {
+      "source": "/api/extract",
+      "destination": "/api/fetch"
+    },
+    {
+      "source": "/api/proxy",
+      "destination": "/api/fetch"
+    },
+    {
       "source": "/api/(.*)",
       "destination": "/api/$1"
     },
