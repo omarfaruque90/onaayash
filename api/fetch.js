@@ -65,29 +65,38 @@ async function handleExtract(req, res) {
       "Cache-Control": "no-cache"
     };
 
-    // Fast-fail AbortController for Vercel timeouts (8s ceiling out of 10s serverless lifespan)
+    // Fast-fail AbortController for Vercel timeouts (9s ceiling out of 10s serverless lifespan)
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 8000);
+    const timeoutId = setTimeout(() => abortController.abort(), 9000);
 
-    const response = await fetch(url, { 
-      headers: spoofHeaders,
-      signal: abortController.signal
-    });
+    let html = "";
+    let fetchStatus = 200;
+
+    try {
+      const response = await fetch(url, { 
+        headers: spoofHeaders,
+        signal: abortController.signal,
+        redirect: 'follow'
+      });
+      fetchStatus = response.status;
+      html = await response.text();
+    } catch (fetchErr) {
+      console.error("Initial fetch failed:", fetchErr);
+      // If it's a timeout, we might not have HTML
+    }
     
     clearTimeout(timeoutId);
-    if (!response.ok) {
-       return res.status(response.status).json({ error: `Dynamic content blocked: Server returned ${response.status} for URL.` });
-    }
+    const $ = cheerio.load(html || "");
 
-    const html = await response.text();
-    const $ = cheerio.load(html);
-
+    // 0. Check if we actually got a block page but still have meta tags
+    // Some sites return 403 but still have OG tags in the body
+    
     // Initial General Tag Scraper
     title = $('meta[property="og:title"]').attr("content") || $("title").text() || title;
-    thumbnail = $('meta[property="og:image"]').attr("content");
+    thumbnail = $('meta[property="og:image"]').attr("content") || $('meta[name="twitter:image"]').attr("content");
     
     // 1. Specific TikTok Scraper
-    if (url.includes('tiktok.com')) {
+    if (url.includes('tiktok.com') && html) {
       // TikTok usually hydration data in script#__UNIVERSAL_DATA_FOR_REHYDRATION__
       const hydrationData = $('#__UNIVERSAL_DATA_FOR_REHYDRATION__').html();
       if (hydrationData) {
@@ -151,7 +160,24 @@ async function handleExtract(req, res) {
       }
     }
 
-    // 3. Generic Meta Tag Scraper (Fallback for highest res)
+    // 3. Specific Facebook Scraper
+    if (!mediaUrl && (url.includes('facebook.com') || url.includes('fb.watch'))) {
+      try {
+        // Facebook stores video URLs in various script patterns
+        const fbMatch = html.match(/"browser_native_sd_url":"([^"]+)"/) || 
+                       html.match(/"browser_native_hd_url":"([^"]+)"/) ||
+                       html.match(/"video":\{"url":"([^"]+)"\}/);
+        
+        if (fbMatch && fbMatch[1]) {
+           mediaUrl = fbMatch[1].replace(/\\u002F/g, '/').replace(/\\/g, '');
+           type = "video";
+        }
+      } catch (e) {
+        console.error("Facebook extraction failed", e);
+      }
+    }
+
+    // 4. Generic Meta Tag Scraper (Fallback for highest res)
     if (!mediaUrl) {
       mediaUrl =
         $('meta[property="og:video:secure_url"]').attr("content") ||
@@ -206,7 +232,13 @@ async function handleExtract(req, res) {
     }
 
     if (!mediaUrl) {
-      return res.status(404).json({ error: "Could not extract raw media URL: Meta tags empty and internal scraping failed." });
+      let errorMsg = "Could not extract raw media URL: Meta tags empty and scraping patterns failed.";
+      if (fetchStatus === 403 || fetchStatus === 401) {
+        errorMsg = "Extraction blocked: The platform (Instagram/Facebook) is blocking our server. This happens frequently on cloud hosting. Try another link or a different platform.";
+      } else if (fetchStatus === 404) {
+        errorMsg = "Video not found: The link might be private, deleted, or incorrect.";
+      }
+      return res.status(404).json({ error: errorMsg });
     }
 
     // High Quality Image Fallback Cleanup

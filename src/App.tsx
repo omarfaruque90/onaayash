@@ -112,6 +112,24 @@ export default function App() {
     }
   };
 
+  const handleDownload = async (url: string, filename: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = filename || 'media-onaayash.mp4';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      // Fallback to direct link if blob fails
+      window.open(url, '_blank shadow');
+    }
+  };
+
   return (
     <div className="min-h-screen relative w-full overflow-x-hidden overflow-y-auto flex flex-col font-sans text-slate-200 bg-[#0a0a0c] no-scrollbar">
       {/* Background Glow Effects */}
@@ -261,14 +279,13 @@ export default function App() {
                   <h3 className="text-white font-medium line-clamp-2 text-lg" title={result.title}>{result.title}</h3>
                 </div>
                 
-                <a 
-                  href={result.mediaUrl} 
-                  download
-                  className="mt-4 md:mt-0 inline-flex items-center justify-center gap-2 w-full md:w-auto self-start px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-medium transition-all shadow-sm"
+                <button 
+                  onClick={() => handleDownload(result.mediaUrl, `Onaayash_${Date.now()}.${result.type === 'video' ? 'mp4' : 'jpg'}`)}
+                  className="mt-4 md:mt-0 inline-flex items-center justify-center gap-2 w-full md:w-auto self-start px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-medium transition-all shadow-sm cursor-pointer"
                 >
                   <Download className="w-4 h-4" />
                   Download File
-                </a>
+                </button>
               </div>
             </div>
           )}
