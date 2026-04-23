@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Google AI Studio App</title>
+    <script>
+      // Aggressively suppress the known AI Studio iframe fetch proxy error caused by browser extensions
+      // The capture: true phase ensures we catch it before Vite or the app's error boundary
+      window.addEventListener('error', function(e) {
+        if (e.message && e.message.includes('Cannot set property fetch')) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          e.stopPropagation();
+        }
+      }, true);
+      
+      window.addEventListener('unhandledrejection', function(e) {
+        if (e.reason && e.reason.message && e.reason.message.includes('Cannot set property fetch')) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          e.stopPropagation();
+        }
+      }, true);
+
+      const ogError = console.error;
+      console.error = function(...args) {
+        if (args.length > 0 && typeof args[0] === 'string' && args[0].includes('Cannot set property fetch')) return;
+        if (args.length > 0 && args[0] instanceof Error && args[0].message.includes('Cannot set property fetch')) return;
+        ogError.apply(console, args);
+      };
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

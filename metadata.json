@@ -1,0 +1,9 @@
+{
+  "name": "Onaayash - Universal Media Downloader",
+  "description": "A Universal Media Downloader by Omar The Bhaijan. Extract and download media from any link with real-time AI parsing and proxy streaming.",
+  "requestFramePermissions": [
+    "clipboard-read",
+    "clipboard-write"
+  ],
+  "majorCapabilities": []
+}
