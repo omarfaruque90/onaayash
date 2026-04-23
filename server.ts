@@ -108,11 +108,13 @@ async function startServer() {
       // 2. YouTube Support
       if (!mediaUrl && (url.includes('youtube.com') || url.includes('youtu.be'))) {
         try {
-          const ytDataMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});/);
+          const ytDataMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?})\s*[;|<]/) || 
+                             html.match(/["']ytInitialPlayerResponse["']\s*:\s*({.+?})\s*[;|,|<]/);
           if (ytDataMatch && ytDataMatch[1]) {
             const playerResponse = JSON.parse(ytDataMatch[1]);
-            const formats = playerResponse?.streamingData?.adaptiveFormats || playerResponse?.streamingData?.formats || [];
-            const bestFormat = formats.reverse().find((f: any) => f.url && f.mimeType.includes('video/mp4'));
+            const streamingData = playerResponse?.streamingData || {};
+            const formats = [...(streamingData.adaptiveFormats || []), ...(streamingData.formats || [])];
+            const bestFormat = formats.reverse().find((f: any) => f.url && f.mimeType && f.mimeType.includes('video/mp4'));
             if (bestFormat && bestFormat.url) {
                mediaUrl = bestFormat.url;
                type = "video";

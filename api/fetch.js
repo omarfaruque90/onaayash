@@ -130,14 +130,17 @@ async function handleExtract(req, res) {
     if (url.includes('youtube.com') || url.includes('youtu.be')) {
       try {
         // Try to find the ytInitialPlayerResponse which contains direct stream links
-        const ytDataMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});/);
+        // Broadened regex to handle different assignment styles
+        const ytDataMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?})\s*[;|<]/) || 
+                           html.match(/["']ytInitialPlayerResponse["']\s*:\s*({.+?})\s*[;|,|<]/);
+        
         if (ytDataMatch && ytDataMatch[1]) {
           const playerResponse = JSON.parse(ytDataMatch[1]);
-          const formats = playerResponse?.streamingData?.adaptiveFormats || playerResponse?.streamingData?.formats || [];
+          const streamingData = playerResponse?.streamingData || {};
+          const formats = [...(streamingData.adaptiveFormats || []), ...(streamingData.formats || [])];
           
-          // Look for the highest quality video format that has a URL
-          // Note: YouTube often splits audio and video, we try to find one with both if possible
-          const bestFormat = formats.reverse().find(f => f.url && f.mimeType.includes('video/mp4'));
+          // Look for highest quality video+audio combined or just video
+          const bestFormat = formats.reverse().find(f => f.url && f.mimeType && f.mimeType.includes('video/mp4'));
           if (bestFormat && bestFormat.url) {
              mediaUrl = bestFormat.url;
              type = "video";
