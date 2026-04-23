@@ -105,6 +105,24 @@ async function startServer() {
         }
       }
 
+      // 2. YouTube Support
+      if (!mediaUrl && (url.includes('youtube.com') || url.includes('youtu.be'))) {
+        try {
+          const ytDataMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});/);
+          if (ytDataMatch && ytDataMatch[1]) {
+            const playerResponse = JSON.parse(ytDataMatch[1]);
+            const formats = playerResponse?.streamingData?.adaptiveFormats || playerResponse?.streamingData?.formats || [];
+            const bestFormat = formats.reverse().find((f: any) => f.url && f.mimeType.includes('video/mp4'));
+            if (bestFormat && bestFormat.url) {
+               mediaUrl = bestFormat.url;
+               type = "video";
+            }
+          }
+        } catch (e) {
+          console.error("YouTube parse failure:", e);
+        }
+      }
+
       const ai = getAi();
       // 3. AI Fallback Parsing (if standard tags aren't sufficient)
       if (
@@ -115,9 +133,16 @@ async function startServer() {
         const cleanHtml = $.html().slice(0, 45000); // Send partial DOM for JSON-LD/script searching
 
         const prompt = `
-          You are an advanced media extraction API. Extract the direct raw video or image URL (mp4, webm, jpg, png, etc.) from the provided HTML.
-          Look closely at application/ld+json scripts, embedded state objects, or direct <script> definitions.
-          Respond strictly with valid JSON format, using this schema:
+          You are an expert data scraper. Extract the absolute highest resolution, direct raw video (.mp4) or image (.jpg/png) URL from the messy HTML chunk provided. 
+          Focus intensely on patterns like:
+          - "playAddr": "..." (TikTok)
+          - "downloadAddr": "..." (TikTok)
+          - "url": "..." inside streamingData (YouTube)
+          - fbcdn.net / instagram.com cdn links
+          - Strings ending in .mp4 or .jpg/.png
+          
+          Ignore UI elements, trackers, and low-res thumbnails.
+          Respond strictly with valid JSON format:
           {
             "mediaUrl": "string | null",
             "type": "video | image",

@@ -126,7 +126,29 @@ async function handleExtract(req, res) {
       }
     }
 
-    // 2. Generic Meta Tag Scraper (Fallback for highest res)
+    // 2. Specific YouTube Scraper
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+      try {
+        // Try to find the ytInitialPlayerResponse which contains direct stream links
+        const ytDataMatch = html.match(/ytInitialPlayerResponse\s*=\s*({.+?});/);
+        if (ytDataMatch && ytDataMatch[1]) {
+          const playerResponse = JSON.parse(ytDataMatch[1]);
+          const formats = playerResponse?.streamingData?.adaptiveFormats || playerResponse?.streamingData?.formats || [];
+          
+          // Look for the highest quality video format that has a URL
+          // Note: YouTube often splits audio and video, we try to find one with both if possible
+          const bestFormat = formats.reverse().find(f => f.url && f.mimeType.includes('video/mp4'));
+          if (bestFormat && bestFormat.url) {
+             mediaUrl = bestFormat.url;
+             type = "video";
+          }
+        }
+      } catch (e) {
+        console.error("YouTube specific extraction failed", e);
+      }
+    }
+
+    // 3. Generic Meta Tag Scraper (Fallback for highest res)
     if (!mediaUrl) {
       mediaUrl =
         $('meta[property="og:video:secure_url"]').attr("content") ||
@@ -152,7 +174,14 @@ async function handleExtract(req, res) {
         const aiResult = await ai.models.generateContent({
           model: "gemini-2.5-flash",
           contents: `You are an expert data scraper. Extract the absolute highest resolution, direct raw video (.mp4) or image (.jpg/png) URL from the messy HTML chunk provided. 
-          Focus intensely on extracting CDN paths (like .byte., .cdn., fbcdn, or strings ending in .mp4). Ignore UI elements, trackers, and low-res thumbnails.
+          Focus intensely on patterns like:
+          - "playAddr": "..." (TikTok)
+          - "downloadAddr": "..." (TikTok)
+          - "url": "..." inside streamingData (YouTube)
+          - fbcdn.net / instagram.com cdn links
+          - Strings ending in .mp4 or .jpg/.png
+          
+          Ignore UI elements, trackers, and low-res thumbnails.
           Reply strictly in JSON: { "mediaUrl": string | null, "type": "video" | "image", "title": string, "thumbnail": string | null }. 
           HTML: ${cleanHtml}`,
           config: { responseMimeType: "application/json", temperature: 0.1 },
