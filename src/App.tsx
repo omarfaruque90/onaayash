@@ -113,7 +113,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen relative overflow-auto flex flex-col font-sans text-slate-200 bg-[#0a0a0c] no-scrollbar">
+    <div className="min-h-screen relative w-full overflow-x-hidden overflow-y-auto flex flex-col font-sans text-slate-200 bg-[#0a0a0c] no-scrollbar">
       {/* Background Glow Effects */}
       <div className="absolute top-[-20%] left-[-10%] w-[500px] h-[500px] bg-blue-900/20 rounded-full blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-indigo-900/20 rounded-full blur-[100px] pointer-events-none" />
@@ -136,7 +136,7 @@ export default function App() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="flex w-full justify-between items-center px-10 py-8 z-10 flex-shrink-0">
+      <header className="flex w-full justify-between items-center px-4 sm:px-10 py-6 sm:py-8 z-10 flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-tr from-indigo-600 to-blue-400 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <Download className="w-6 h-6 text-white" />
@@ -156,14 +156,14 @@ export default function App() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col items-center pt-10 pb-20 px-10 z-10 relative">
+      <main className="flex-1 flex flex-col items-center w-full pt-6 sm:pt-10 pb-20 px-4 sm:px-10 z-10 relative">
         
         {/* Title Section */}
-        <div className="text-center mb-12 w-full">
-          <h2 className="text-5xl font-bold text-white mb-4 tracking-tight leading-tight">
+        <div className="text-center mb-8 sm:mb-12 w-full">
+          <h2 className="text-3xl sm:text-5xl font-bold text-white mb-4 tracking-tight leading-tight">
             Universal Media Extractor
           </h2>
-          <p className="text-slate-400 text-lg max-w-2xl mx-auto">
+          <p className="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto">
             Paste your link below to fetch high-quality raw media directly to your browser. No logs, no tracking, just content.
           </p>
         </div>
